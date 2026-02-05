@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CharityChain - Donation Crowdfunding DApp</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="container">
+        <div class="header-content">
+          <h1 class="logo">CharityChain</h1>
+          <div class="header-info">
+            <div class="info-item">
+              <label>Wallet:</label>
+              <span id="walletAddress">Not Connected</span>
+            </div>
+            <div class="info-item">
+              <label>Network:</label>
+              <span id="networkInfo">Unknown</span>
+            </div>
+            <div class="info-item">
+              <label>ETH Balance:</label>
+              <span id="ethBalance">0.00 ETH</span>
+            </div>
+            <div class="info-item">
+              <label>CCRT Tokens:</label>
+              <span id="tokenBalance">0.00</span>
+            </div>
+            <button id="connectBtn" class="btn btn-primary">Connect MetaMask</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="hero">
+        <h2>Welcome to CharityChain</h2>
+        <p>A decentralized crowdfunding platform where your donations are rewarded with CCRT tokens.</p>
+        <p class="subtitle">Local-only DApp running on Hardhat Network (Chain ID 31337)</p>
+      </section>
+
+      <div id="alertContainer"></div>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <section class="card">
+            <h3>Create Campaign</h3>
+            <form id="createCampaignForm">
+              <div class="form-group">
+                <label for="campaignTitle">Campaign Title:</label>
+                <input
+                  type="text"
+                  id="campaignTitle"
+                  placeholder="e.g., Build Clean Water Well"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="campaignGoal">Goal (ETH):</label>
+                <input
+                  type="number"
+                  id="campaignGoal"
+                  placeholder="e.g., 10.5"
+                  step="any"
+                  min="0.001"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="campaignDuration">Duration (seconds, max 600):</label>
+                <input
+                  type="number"
+                  id="campaignDuration"
+                  placeholder="e.g., 120"
+                  step="1"
+                  min="10"
+                  max="600"
+                  required
+                />
+                <small>10-600 seconds (up to 10 minutes)</small>
+              </div>
+
+              <button type="submit" class="btn btn-success">Create Campaign</button>
+            </form>
+          </section>
+
+          <section class="card">
+            <h3>Contribute to Campaign</h3>
+            <form id="contributeForm">
+              <div class="form-group">
+                <label for="campaignIdContribute">Campaign ID:</label>
+                <input
+                  type="number"
+                  id="campaignIdContribute"
+                  placeholder="e.g., 0"
+                  min="0"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="contributionAmount">Amount (ETH):</label>
+                <input
+                  type="number"
+                  id="contributionAmount"
+                  placeholder="e.g., 0.5"
+                  step="0.001"
+                  min="0.001"
+                  required
+                />
+              </div>
+
+              <button type="submit" class="btn btn-info">Contribute</button>
+            </form>
+          </section>
+
+          <section class="card">
+            <h3>Manage Campaign</h3>
+            <form id="manageForm">
+              <div class="form-group">
+                <label for="campaignIdManage">Campaign ID:</label>
+                <input
+                  type="number"
+                  id="campaignIdManage"
+                  placeholder="e.g., 0"
+                  min="0"
+                  required
+                />
+              </div>
+
+              <div class="button-group">
+                <button type="button" id="finalizeBtn" class="btn btn-warning">Finalize</button>
+                <button type="button" id="withdrawBtn" class="btn btn-success">Withdraw</button>
+                <button type="button" id="refundBtn" class="btn btn-danger">Refund</button>
+              </div>
+            </form>
+          </section>
+        </aside>
+
+        <section class="main-content">
+          <div class="card">
+            <h3>Active Campaigns</h3>
+            <div id="campaignsList" class="campaigns-grid">
+              <div class="placeholder">
+                <p>No campaigns loaded yet. Connect wallet to load campaigns.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>CharityChain - Local Hardhat Network DApp | Built with Solidity + Ethers.js</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script>
+      if (typeof ethers === 'undefined') {
+        console.error('Ethers.js CDN failed to load. Check network connection.');
+      } else {
+        console.log('Ethers.js loaded from CDN');
+      }
+    </script>
+    <script src="config.js?v=12"></script>
+    <script src="app.js?v=12"></script>
+  </body>
+</html>
