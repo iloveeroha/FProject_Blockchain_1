@@ -118,3 +118,93 @@ contract CharityChain is ReentrancyGuard {
         emit Contributed(_campaignId, msg.sender, msg.value, tokensToMint);
         emit RewardMinted(_campaignId, msg.sender, tokensToMint);
     }
+
+    function finalizeCampaign(uint256 _campaignId) external {
+        require(_campaignId < campaignCount, "Campaign does not exist");
+
+        Campaign storage campaign = campaigns[_campaignId];
+        require(!campaign.finalized, "Campaign already finalized");
+        require(
+            block.timestamp > campaign.deadline || campaign.totalRaised >= campaign.goalWei,
+            "Cannot finalize: deadline not reached and goal not met"
+        );
+
+        campaign.finalized = true;
+        campaign.successful = campaign.totalRaised >= campaign.goalWei;
+
+        emit Finalized(_campaignId, campaign.successful, campaign.totalRaised);
+    }
+
+    function withdrawFunds(uint256 _campaignId) external nonReentrant {
+        require(_campaignId < campaignCount, "Campaign does not exist");
+
+        Campaign storage campaign = campaigns[_campaignId];
+        require(msg.sender == campaign.creator, "Only creator can withdraw");
+        require(campaign.finalized, "Campaign not finalized");
+        require(campaign.successful, "Campaign was not successful");
+
+        uint256 amountToWithdraw = campaign.totalRaised;
+        require(amountToWithdraw > 0, "No funds to withdraw");
+
+        campaign.totalRaised = 0;
+        campaign.creator.transfer(amountToWithdraw);
+
+        emit Withdrawn(_campaignId, msg.sender, amountToWithdraw);
+    }
+
+    function refund(uint256 _campaignId) external nonReentrant {
+        require(_campaignId < campaignCount, "Campaign does not exist");
+
+        Campaign storage campaign = campaigns[_campaignId];
+        require(campaign.finalized, "Campaign not finalized");
+        require(!campaign.successful, "Campaign was successful");
+
+        uint256 contributionAmount = contributions[_campaignId][msg.sender];
+        require(contributionAmount > 0, "No contribution found");
+        require(!hasRefunded[_campaignId][msg.sender], "Already refunded");
+
+        hasRefunded[_campaignId][msg.sender] = true;
+        contributions[_campaignId][msg.sender] = 0;
+        campaign.totalRaised -= contributionAmount;
+
+        payable(msg.sender).transfer(contributionAmount);
+
+        emit Refunded(_campaignId, msg.sender, contributionAmount);
+    }
+    function getCampaign(uint256 _campaignId)
+        external
+        view
+        returns (Campaign memory)
+    {
+        require(_campaignId < campaignCount, "Campaign does not exist");
+        return campaigns[_campaignId];
+    }
+
+    function getUserContribution(uint256 _campaignId, address _user)
+        external
+        view
+        returns (uint256)
+    {
+        require(_campaignId < campaignCount, "Campaign does not exist");
+        return contributions[_campaignId][_user];
+    }
+
+    function isDeadlinePassed(uint256 _campaignId) external view returns (bool) {
+        require(_campaignId < campaignCount, "Campaign does not exist");
+        return block.timestamp > campaigns[_campaignId].deadline;
+    }
+
+    function hasUserRefunded(uint256 _campaignId, address _user)
+        external
+        view
+        returns (bool)
+    {
+        require(_campaignId < campaignCount, "Campaign does not exist");
+        return hasRefunded[_campaignId][_user];
+    }
+
+    function isGoalReached(uint256 _campaignId) external view returns (bool) {
+        require(_campaignId < campaignCount, "Campaign does not exist");
+        return campaigns[_campaignId].totalRaised >= campaigns[_campaignId].goalWei;
+    }
+}
