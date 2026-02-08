@@ -311,3 +311,297 @@ async function handleCreateCampaign(event) {
   }
 }
 
+async function handleContribute(event) {
+  event.preventDefault();
+
+  if (!state.charityChainContract) {
+    showAlert("❌ Not connected. Please connect MetaMask first.", "error");
+    return;
+  }
+
+  try {
+    const campaignId = parseInt(document.getElementById("campaignIdContribute").value);
+    const amountEth = parseFloat(document.getElementById("contributionAmount").value);
+
+    if (isNaN(campaignId) || !amountEth || amountEth <= 0) {
+      showAlert("❌ Please enter valid campaign ID and amount.", "error");
+      return;
+    }
+
+    const amountWei = ethers.utils.parseEther(amountEth.toString());
+
+    console.log(`Contributing ${amountEth} ETH to campaign ${campaignId}`);
+
+    const tx = await state.charityChainContract.contribute(campaignId, {
+      value: amountWei,
+    });
+
+    showAlert(`⏳ Processing contribution... TX: ${tx.hash}`, "info");
+    await tx.wait();
+
+    showAlert(
+      `✅ Contribution successful! You received ${(amountEth * 1000).toFixed(0)} CCRT tokens.`,
+      "success"
+    );
+    event.target.reset();
+    loadCampaigns();
+    updateHeader();
+  } catch (error) {
+    console.error("Contribute error:", error);
+    showAlert(`❌ Error: ${error.message}`, "error");
+  }
+}
+
+async function handleFinalize() {
+  if (!state.charityChainContract) {
+    showAlert("❌ Not connected. Please connect MetaMask first.", "error");
+    return;
+  }
+
+  try {
+    const campaignId = parseInt(document.getElementById("campaignIdManage").value);
+
+    if (isNaN(campaignId)) {
+      showAlert("❌ Please enter a valid campaign ID.", "error");
+      return;
+    }
+
+    console.log(`Finalizing campaign ${campaignId}`);
+
+    const tx = await state.charityChainContract.finalizeCampaign(campaignId);
+
+    showAlert(`⏳ Finalizing campaign... TX: ${tx.hash}`, "info");
+    await tx.wait();
+
+    showAlert(`✅ Campaign finalized!`, "success");
+    loadCampaigns();
+    updateHeader();
+  } catch (error) {
+    console.error("Finalize error:", error);
+    showAlert(`❌ Error: ${error.message}`, "error");
+  }
+}
+
+async function handleWithdraw() {
+  if (!state.charityChainContract) {
+    showAlert("❌ Not connected. Please connect MetaMask first.", "error");
+    return;
+  }
+
+  try {
+    const campaignId = parseInt(document.getElementById("campaignIdManage").value);
+
+    if (isNaN(campaignId)) {
+      showAlert("❌ Please enter a valid campaign ID.", "error");
+      return;
+    }
+
+    console.log(`Withdrawing funds from campaign ${campaignId}`);
+
+    const tx = await state.charityChainContract.withdrawFunds(campaignId);
+
+    showAlert(`⏳ Withdrawing funds... TX: ${tx.hash}`, "info");
+    await tx.wait();
+
+    showAlert(`✅ Funds withdrawn successfully!`, "success");
+    loadCampaigns();
+    updateHeader();
+  } catch (error) {
+    console.error("Withdraw error:", error);
+    showAlert(`❌ Error: ${error.message}`, "error");
+  }
+}
+
+async function handleRefund() {
+  if (!state.charityChainContract) {
+    showAlert("❌ Not connected. Please connect MetaMask first.", "error");
+    return;
+  }
+
+  try {
+    const campaignId = parseInt(document.getElementById("campaignIdManage").value);
+
+    if (isNaN(campaignId)) {
+      showAlert("❌ Please enter a valid campaign ID.", "error");
+      return;
+    }
+
+    console.log(`Requesting refund for campaign ${campaignId}`);
+
+    const tx = await state.charityChainContract.refund(campaignId);
+
+    showAlert(`⏳ Processing refund... TX: ${tx.hash}`, "info");
+    await tx.wait();
+
+    showAlert(`✅ Refund processed successfully!`, "success");
+    loadCampaigns();
+    updateHeader();
+  } catch (error) {
+    console.error("Refund error:", error);
+    showAlert(`❌ Error: ${error.message}`, "error");
+  }
+}
+
+async function loadCampaigns() {
+  if (!state.charityChainContract) return;
+
+  try {
+    const count = await state.charityChainContract.campaignCount();
+    state.campaigns = [];
+
+    for (let i = 0; i < count; i++) {
+      try {
+        const campaign = await state.charityChainContract.getCampaign(i);
+        state.campaigns.push(campaign);
+      } catch (error) {
+        console.error(`Error loading campaign ${i}:`, error);
+      }
+    }
+
+    await displayCampaigns();
+  } catch (error) {
+    console.error("Error loading campaigns:", error);
+    showAlert("❌ Error loading campaigns", "error");
+  }
+}
+
+async function displayCampaigns() {
+  const container = document.getElementById("campaignsList");
+
+  if (state.campaigns.length === 0) {
+    container.innerHTML = `
+      <div class="placeholder">
+        <p>No campaigns yet. Be the first to create one!</p>
+      </div>
+    `;
+    return;
+  }
+
+  const campaignCards = [];
+  for (const campaign of state.campaigns) {
+    let hasRefunded = false;
+    try {
+      if (campaign.finalized && !campaign.successful) {
+        hasRefunded = await state.charityChainContract.hasUserRefunded(
+          campaign.id,
+          state.userAddress
+        );
+      }
+    } catch (error) {
+      console.error(`Error checking refund status for campaign ${campaign.id}:`, error);
+    }
+    campaignCards.push(createCampaignCard(campaign, hasRefunded));
+  }
+  
+  container.innerHTML = campaignCards.join("");
+}
+
+function createCampaignCard(campaign, hasRefunded = false) {
+  const id = campaign.id.toString();
+  const title = campaign.title;
+  const goalEth = ethers.utils.formatEther(campaign.goalWei);
+  const raisedEth = ethers.utils.formatEther(campaign.totalRaised);
+  const percentage = Math.min((parseFloat(raisedEth) / parseFloat(goalEth)) * 100, 100);
+
+  const isDeadlinePassed = campaign.deadline < Math.floor(Date.now() / 1000);
+  const isSuccessful = campaign.successful; 
+  
+  let statusText, statusClass;
+  if (!campaign.finalized) {
+    statusText = isDeadlinePassed ? "⏰ Ended" : "🟢 Active";
+    statusClass = isDeadlinePassed ? "status-ended" : "status-active";
+  } else if (isSuccessful) {
+    if (parseFloat(raisedEth) === 0) {
+      statusText = "💰 Withdrawn";
+      statusClass = "status-withdrawn";
+    } else {
+      statusText = "✅ Successful";
+      statusClass = "status-successful";
+    }
+  } else {
+    if (hasRefunded) {
+      statusText = "🔄 Refunded";
+      statusClass = "status-refunded";
+    } else {
+      statusText = "❌ Failed";
+      statusClass = "status-failed";
+    }
+  }
+
+  const remainingSeconds = Math.max(0, campaign.deadline - Math.floor(Date.now() / 1000));
+  const creatorDisplay = campaign.creator.substring(0, 6) + "..." + campaign.creator.substring(38);
+
+  return `
+    <div class="campaign-card">
+      <h4>${title}</h4>
+      <div class="campaign-info">
+        <span><strong>ID:</strong> #${id}</span>
+        <span class="campaign-status ${statusClass}">${statusText}</span>
+      </div>
+      <div class="campaign-info">
+        <label>Goal:</label>
+        <span>${parseFloat(goalEth).toFixed(2)} ETH</span>
+      </div>
+      <div class="campaign-info">
+        <label>Raised:</label>
+        <span>${parseFloat(raisedEth).toFixed(2)} ETH</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: ${percentage}%"></div>
+      </div>
+      <div class="campaign-info">
+        <label>Progress:</label>
+        <span>${percentage.toFixed(1)}%</span>
+      </div>
+      <div class="campaign-info">
+        <label>Creator:</label>
+        <span style="font-size: 12px;">${creatorDisplay}</span>
+      </div>
+      <div class="campaign-info">
+        <label>Time Remaining:</label>
+        <span style="font-size: 12px;">${remainingSeconds} seconds</span>
+      </div>
+    </div>
+  `;
+}
+
+function showAlert(message, type = "info") {
+  const container = document.getElementById("alertContainer");
+  const alertId = "alert-" + Date.now();
+
+  const alertHTML = `
+    <div id="${alertId}" class="alert alert-${type}">
+      <span>${message}</span>
+      <button class="alert-close" onclick="document.getElementById('${alertId}').remove();">✕</button>
+    </div>
+  `;
+
+  container.insertAdjacentHTML("beforeend", alertHTML);
+
+  setTimeout(() => {
+    const element = document.getElementById(alertId);
+    if (element) element.remove();
+  }, 8000);
+}
+
+function enableAllControls() {
+  document.getElementById("createCampaignForm").style.opacity = "1";
+  document.getElementById("contributeForm").style.opacity = "1";
+  document.getElementById("manageForm").style.opacity = "1";
+
+  Array.from(document.querySelectorAll("input, button")).forEach((el) => {
+    if (el.id !== "connectBtn") el.disabled = false;
+  });
+}
+
+function disableAllControls() {
+  document.getElementById("createCampaignForm").style.opacity = "0.5";
+  document.getElementById("contributeForm").style.opacity = "0.5";
+  document.getElementById("manageForm").style.opacity = "0.5";
+
+  Array.from(document.querySelectorAll("input, button")).forEach((el) => {
+    el.disabled = true;
+  });
+}
+
+
