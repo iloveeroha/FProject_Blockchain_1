@@ -1,264 +1,261 @@
-CharityChain — Final Project Documentation
+# CharityChain — Final Project Documentation
 
-1. Overview of the Application Architecture
+## 1. Overview of the Application Architecture
 
-CharityChain is a decentralized crowdfunding platform built on the Ethereum blockchain.
-The system follows a three-layer architecture:
+**CharityChain** is a decentralized crowdfunding platform built on the Ethereum blockchain.  
+The system follows a **three-layer architecture**, ensuring separation of concerns, security, and maintainability.
 
-1.1 Blockchain Layer (Smart Contracts)
+### 1.1 Blockchain Layer (Smart Contracts)
 
-CharityChain.sol — core crowdfunding logic
+- **CharityChain.sol** — core crowdfunding logic  
+- **RewardToken.sol** — ERC-20 reward token contract  
+- Deployed and managed using **Hardhat**  
+- Local blockchain: **Hardhat Network (Chain ID: 31337)**
 
-RewardToken.sol — ERC-20 reward token contract
+### 1.2 Application Layer (Frontend)
 
-Deployed and managed using Hardhat
+- Built with **HTML, CSS, and JavaScript**
+- Uses **Ethers.js** to interact with smart contracts
+- Runs in the browser
+- Connects via **MetaMask**
 
-Local blockchain: Hardhat Network (Chain ID: 31337)
+### 1.3 Tooling & Infrastructure
 
-1.2 Application Layer (Frontend)
+- **Hardhat** — compilation, deployment, testing  
+- **Mocha + Chai** — automated smart contract testing  
+- **Node.js** — deployment scripts and local server  
+- **MetaMask** — wallet management and transaction signing  
 
-Built with HTML, CSS, and JavaScript
+> This layered design improves **security**, **maintainability**, and **testability** by isolating responsibilities across the stack.
 
-Uses Ethers.js to communicate with the blockchain
+---
 
-Runs in the browser and connects via MetaMask
+## 2. Design and Implementation Decisions
 
-1.3 Tooling & Infrastructure
+### 2.1 Choice of Blockchain Stack
 
-Hardhat — compilation, deployment, testing
+**Ethereum-compatible environment** was selected due to:
+- Mature tooling ecosystem  
+- Wide wallet compatibility  
+- Strong developer and community support  
 
-Mocha + Chai — automated smart contract testing
+**Hardhat** was chosen for:
+- Fast local testing  
+- Blockchain time manipulation (deadlines)  
+- Detailed debugging and readable logs  
 
-Node.js — deployment scripts and local server
+### 2.2 Smart Contract Design
 
-MetaMask — wallet and transaction signing
+- Logic split into **two independent contracts**:
+  - Crowdfunding logic
+  - Token logic  
+- Improves **modularity**, **reusability**, and **security**
 
-This layered design ensures clear separation of concerns, improving security, maintainability, and testability.
+- Uses **OpenZeppelin** libraries:
+  - `ReentrancyGuard` — protection against re-entrancy attacks  
+  - `ERC20`, `Ownable` — standardized and audited implementations  
 
-2. Design and Implementation Decisions
+### 2.3 Security Considerations
 
-2.1 Choice of Blockchain Stack
+- Re-entrancy protection on all ETH-transferring functions  
+- Explicit validation for:
+  - Campaign existence  
+  - Deadline conditions  
+  - Double refunds  
+  - Unauthorized withdrawals  
+- Campaign rules are **immutable after creation**
 
-- Ethereum-compatible environment chosen due to:
+---
 
-Mature tooling
+## 3. Smart Contract Logic Description
 
-Wide wallet support
+### 3.1 CharityChain Contract
 
-Strong developer ecosystem
+The `CharityChain` contract manages the entire crowdfunding lifecycle.
 
-- Hardhat selected for:
+#### Main Features
 
-Fast local testing
+- Campaign creation with:
+  - Funding goal
+  - Time-based deadline
+- ETH contributions from users
+- Automatic reward token minting
+- Campaign finalization
+- Creator withdrawals
+- Donor refunds for failed campaigns
 
-Time manipulation (for deadlines)
+#### Core Workflow
 
-Detailed debugging and logs
+1. **Create Campaign**  
+   Campaign creator defines title, funding goal, and duration  
 
-2.2 Smart Contract Design
+2. **Contribute**  
+   Users send ETH and receive ERC-20 reward tokens proportionally  
 
-- Logic split into two contracts:
+3. **Finalize**  
+   Campaign finalized after deadline or when the goal is reached  
 
-Crowdfunding logic isolated from token logic
+4. **Withdraw or Refund**
+   - Successful campaign → creator withdraws funds  
+   - Failed campaign → contributors claim refunds  
 
-Improves modularity and security
+---
 
-- Uses OpenZeppelin libraries:
+### 3.2 RewardToken Contract
 
-ReentrancyGuard — protection against re-entrancy attacks
+The `RewardToken` contract is an ERC-20 token used to reward donors.
 
-ERC20 and Ownable — standardized token implementation
+#### Key Properties
 
-2.3 Security Considerations
+- **Token Name:** CharityChain Reward  
+- **Symbol:** CCRT  
+- **Decimals:** 18 (standard ERC-20)  
+- Minting restricted to the `CharityChain` contract  
 
-- Re-entrancy protection on all ETH-transferring functions
+#### Tokenomics
 
-- Explicit checks for:
+- **1000 CCRT per 1 ETH**
+- Tokens are minted **immediately upon contribution**
 
-Campaign existence
+---
 
-Deadline validation
+## 4. Frontend-to-Blockchain Interaction
 
-Double refunds
+### 4.1 Wallet Connection
 
-Unauthorized withdrawals
+- MetaMask injected provider (`window.ethereum`)
+- `Ethers.js` `Web3Provider` is used
+- Users sign transactions locally
 
-- Immutable campaign rules once created
+### 4.2 Contract Communication
 
-3. Smart Contract Logic Description
+- ABI files embedded in the frontend
+- Contract addresses loaded from `config.js`
 
-3.1 CharityChain Contract
+**Read operations:**
+- Campaign list  
+- User balances  
+- Campaign status  
 
-The CharityChain contract manages all crowdfunding functionality.
+**Write operations:**
+- Create campaign  
+- Contribute ETH  
+- Finalize campaign  
+- Withdraw or refund  
 
-- Main Features:
+### 4.3 State Synchronization
 
-Campaign creation with: Funding goal, Time-based deadline
-
-ETH contributions from users
-
-Automatic reward token minting
-
-Campaign finalization
-
-Creator withdrawals
-
-Donor refunds for failed campaigns
-
-- Core Workflow:
-
-1. Create Campaign
-
-Creator defines title, goal, and duration
-
-2. Contribute
-
-Users send ETH
-
-Receive ERC-20 reward tokens proportionally
-
-3. Finalize
-
-Campaign finalized after deadline or goal reached
-
-4. Withdraw or Refund
-
-Successful → creator withdraws funds
-
-Failed → contributors claim refunds
-
-3.2 RewardToken Contract
-
-The RewardToken contract is an ERC-20 token used to reward donors.
-
-- Key Properties:
-
-Token Name: CharityChain Reward
-
-Symbol: CCRT
-
-Minting restricted to CharityChain contract
-
-Uses 18 decimals (standard ERC-20)
-
-- Tokenomics:
-
-1000 CCRT tokens per 1 ETH
-
-Tokens minted immediately upon contribution
-
-4. Frontend-to-Blockchain Interaction
-
-4.1 Wallet Connection
-
-MetaMask injected provider (window.ethereum)
-
-Ethers.js Web3Provider used
-
-User signs transactions locally
-
-4.2 Contract Communication
-
-ABI files embedded in frontend
-
-Contract addresses loaded from config.js
-
-Read operations: Campaign list, User balances, Campaign status
-
-Write operations: Create campaign, Contribute ETH, Finalize campaign, Withdraw or refund
-
-4.3 State Synchronization
-
-Frontend fetches on-chain data after each transaction
-
+- Frontend fetches on-chain data after each transaction  
 - UI automatically updates:
+  - Progress bars  
+  - Campaign statuses  
+  - ETH and token balances  
 
-Progress bars
+> This guarantees the interface always reflects the **true blockchain state**.
 
-Campaign status
+---
 
-Token and ETH balances
+## 5. Deployment and Execution Instructions
 
-This ensures the interface always reflects true blockchain state.
+### 5.1 Install Dependencies
 
-5. Deployment and Execution Instructions
-
-5.1 Install Dependencies
+```
 npm install
+```
 
-5.2 Start Local Blockchain
+### 5.2 Start Local Blockchain
+
+```
 npm run node
+```
 
-5.3 Deploy Smart Contracts
+### 5.3 Deploy Smart Contracts
+
+```
 npm run deploy:local
+```
 
-This will deploy both contracts, Set CharityChain as token minter, Generate frontend/config.js automatically
+**This process will:**
 
-5.4 Start Frontend Server
+- Deploy both contracts
+
+- Set CharityChain as the token minter
+
+- Automatically generate frontend/config.js
+
+### 5.4 Start Frontend Server
+
+```
 npm run serve
+```
 
-Open in browser:
-
+**Open in browser:**
+```
 http://localhost:5173
+```
 
-5.5 MetaMask Setup
+### 5.5 MetaMask Setup
 
-Network: Localhost 8545
+- Network: Localhost 8545
 
-Chain ID: 31337
+- Chain ID: 31337
 
-Import a test account using private keys printed by Hardhat
+- Import test accounts using private keys printed by Hardhat
 
-6. Obtaining Test ETH
+## 6. Obtaining Test ETH
 
-6.1 Hardhat Local Network
+###6.1 Hardhat Local Network
 
-Hardhat automatically provides pre-funded accounts
+- Hardhat automatically generates pre-funded accounts 
 
-Each account contains 10,000 ETH
+- Each account contains 10,000 ETH
 
-Private keys are shown when the node starts
+- Private keys are displayed when the node starts
 
-6.2 Using Test Accounts
+### 6.2 Using Test Accounts
 
-Copy a private key from Hardhat console
+1. Copy a private key from the Hardhat console
 
-Import into MetaMask
+2. Import it into MetaMask
 
-Use ETH freely for testing campaigns
+3. Use ETH freely for testing campaigns
 
-7. Testing and Validation
+## 7. Testing and Validation
 
-Comprehensive test suite included in test/charitychain.test.js
+**A comprehensive test suite is provided in:**
 
-- Tests cover:
+```
+test/charitychain.test.js
+```
 
-Campaign creation
+### Test Coverage
 
-Contributions and token minting
+- Campaign creation
 
-Finalization logic
+- ETH contributions and token minting
 
-Withdrawals and refunds
+- Campaign finalization
 
-Access control
+- Withdrawals and refunds
 
-Edge cases and failure scenarios
+- Access control
 
-All tests pass successfully, confirming contract correctness and security.
+- Edge cases and failure scenarios
 
-8. Conclusion
+✅ All tests pass successfully, confirming correctness, security, and reliability.
 
-CharityChain demonstrates a complete decentralized application lifecycle:
+## 8. Conclusion
 
-Secure smart contracts
+**CharityChain demonstrates a complete decentralized application lifecycle:**
 
-Token-based incentives
+- Secure and modular smart contracts
 
-Real blockchain interaction
+- Token-based donor incentives
 
-Automated testing
+- Real blockchain interaction
 
-User-friendly frontend
+- Automated testing
 
-The project fulfills all technical requirements and showcases practical application of Ethereum, Solidity, Ethers.js, and Hardhat in a real-world crowdfunding use case.
+- User-friendly frontend
+
+The project fulfills all technical requirements and showcases practical use of Ethereum, Solidity, Ethers.js, and Hardhat in a real-world crowdfunding scenario.
